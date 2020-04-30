@@ -3,15 +3,20 @@ import json
 from datetime import datetime
 from oauth2client.service_account import ServiceAccountCredentials
 
-scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-creds = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', scope)
-
+def startSession():
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+    creds = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', scope)
+    client = gspread.authorize(creds)
+    wb = client.open('Horario Zurich')
+    sheet1 = wb.sheet1
+    sheet2 = wb.worksheet('Time recording')
+    sheets = [sheet1,sheet2]
+    return sheets
 
 def getJsonData(name):
     with open(name, 'r') as json_file:
         datos = json.loads(json_file.read())
         return datos
-
 
 def getSheetData(records, cols, start):
     data = []
@@ -53,31 +58,31 @@ def setTime(data):
     return datos
 
 
-data = getJsonData('saved_records.json')
-start1 = data['Horario']['last']
-start2 = data['Tracking']['last']
 
-client = gspread.authorize(creds)
-wb = client.open('Horario Zurich')
-sheet1 = wb.sheet1
-sheet2 = wb.worksheet('Time recording')
-last1 = len(sheet1.get_all_records()) - 1
-last2 = len(sheet2.get_all_records()) - 1
-records = sheet1.get_all_records()
-records2 = sheet2.get_all_records()
-data1 = getSheetData(records, ('Dia', 'Tarea', 'Hora Inicio', 'Hora Final'), start1)
-data2 = getSheetData(records2, ('Dia', 'Horas imputadas'), start2)
 
-datos = setTime(data1)
+def main(sheets,data):
+    start1 = data['Horario']['last']
+    start2 = data['Tracking']['last']
 
-data = {"Horario": {
-    "data": datos,
-    "last": last1
-},
-    "Tracking": {
-        "data": data2,
-        "last": last2
-    }}
+    sheet1 = sheets[0]
+    sheet2 = sheets[1]
+    last1 = len(sheet1.get_all_records()) - 1
+    last2 = len(sheet2.get_all_records()) - 1
+    dif1 = last1 - start1
+    dif2 = last2 -start2
+    if dif1 and dif2 > 0:
+        records = sheet1.get_all_records()
+        records2 = sheet2.get_all_records()
+        data1 = getSheetData(records, ('Dia', 'Tarea', 'Hora Inicio', 'Hora Final'), start1)
+        data2 = getSheetData(records2, ('Dia', 'Horas imputadas'), start2)
+        datos = setTime(data1)
 
-savedRecords(data,'saved_records.json')
-
+        data = {"Horario": {
+            "data": datos,
+            "last": last1
+        },
+            "Tracking": {
+                "data": data2,
+                "last": last2
+            }}
+        savedRecords(data, 'saved_records.json')
