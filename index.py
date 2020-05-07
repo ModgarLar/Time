@@ -9,28 +9,25 @@ def startSession():
     client = gspread.authorize(creds)
     wb = client.open('Horario Zurich')
     sheet1 = wb.sheet1
-    sheet2 = wb.worksheet('Time recording')
-    sheets = [sheet1,sheet2]
-    return sheets
+    return wb
 
 def getJsonData(name):
     with open(name, 'r') as json_file:
         datos = json.loads(json_file.read())
         return datos
 
-def getSheetData(records, cols, start):
-    data = []
+def getSheetsData(records,cols,data):
+    start = len(data)
     for i in range(start, len(records)):
         rows = records[i]
         obj = {}
         for column in rows.keys():
-            if column in cols:
+            if column in list(cols.keys()):
                 obj[column] = rows[column]
         if len(obj.keys()) > 0:
             data.append(obj)
 
     return data
-
 
 def savedRecords(data,name):
     with open(name,'w') as json_file:
@@ -60,29 +57,33 @@ def setTime(data):
 
 
 
-def main(sheets,data):
-    start1 = data['Horario']['last']
-    start2 = data['Tracking']['last']
+def main(wb,data):
+    datos1 = data["Horario"]["data"]
+    datos2 = data['Tracking']['data']
 
-    sheet1 = sheets[0]
-    sheet2 = sheets[1]
-    last1 = len(sheet1.get_all_records()) - 1
-    last2 = len(sheet2.get_all_records()) - 1
-    dif1 = last1 - start1
-    dif2 = last2 -start2
+    sheet1 = wb.sheet1
+    sheet2 = wb.worksheet('Time recording')
+    records = sheet1.get_all_records()
+    records2 = sheet2.get_all_records()
+    last1 = len(records)
+    last2 = len(records2)
+    dif1 = last1 - len(datos1)
+    dif2 = last2 -len(datos2)
     if dif1 and dif2 > 0:
-        records = sheet1.get_all_records()
-        records2 = sheet2.get_all_records()
-        data1 = getSheetData(records, ('Dia', 'Tarea', 'Hora Inicio', 'Hora Final'), start1)
-        data2 = getSheetData(records2, ('Dia', 'Horas imputadas'), start2)
-        datos = setTime(data1)
 
+        cols1 = {"Dia":5,"Tarea":6,"Hora Inicio":7,"Hora Final":8}
+        cols2 = {'Dia':1,'Horas imputadas':2}
+
+        print(datos1)
+        data1 = getSheetsData(records,cols1,datos1)
+        data2 = getSheetsData(records2, cols2, datos2)
+        datos = setTime(data1)
+        print(datos)
         data = {"Horario": {
-            "data": datos,
-            "last": last1
+            "data": datos
         },
             "Tracking": {
-                "data": data2,
-                "last": last2
+                "data": data2
             }}
         savedRecords(data, 'saved_records.json')
+    return data
